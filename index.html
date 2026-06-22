@@ -2,279 +2,271 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>My HIIT Timer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom HIIT Engine</title>
     <style>
-        :root {
-            --bg: #121212;
-            --card: #1e1e1e;
-            --text: #ffffff;
-            --accent: #ff4757;
-            --work: #2ed573;
-            --rest: #1e90ff;
-        }
         body {
+            background-color: #121212;
+            color: #ffffff;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-        }
-        .container { width: 100%; max-width: 400px; }
-        h1 { text-align: center; font-size: 24px; margin-bottom: 20px; }
-        .card {
-            background: var(--card);
-            border-radius: 16px;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
             padding: 20px;
-            margin-bottom: 15px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            box-sizing: border-box;
+        }
+        .container {
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
         }
         .timer-display {
-            text-align: center;
-            font-size: 72px;
+            font-size: 5rem;
             font-weight: bold;
-            margin: 10px 0;
+            margin: 20px 0;
+            font-variant-numeric: tabular-nums;
         }
-        .status-label {
-            text-align: center;
-            font-size: 20px;
+        .status-display {
+            font-size: 1.5rem;
             text-transform: uppercase;
             letter-spacing: 2px;
+            color: #bb86fc;
+            margin-bottom: 10px;
+        }
+        .exercise-name {
+            font-size: 2rem;
             font-weight: 600;
+            margin-bottom: 30px;
+            min-height: 2.4rem;
         }
-        .next-label {
-            text-align: center;
-            color: #aaa;
-            font-size: 16px;
-            margin-top: 5px;
-        }
-        .btn {
-            background: var(--accent);
-            color: white;
+        button {
+            background-color: #03dac6;
+            color: #000000;
             border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 16px;
+            padding: 15px 40px;
+            font-size: 1.2rem;
             font-weight: bold;
+            border-radius: 25px;
             cursor: pointer;
-            width: 100%;
-            margin-top: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: transform 0.1s, background-color 0.2s;
         }
-        .btn-group { display: flex; gap: 10px; }
-        .btn-secondary { background: #444; }
-        input, select {
+        button:active {
+            transform: scale(0.98);
+        }
+        button.stop {
+            background-color: #cf6679;
+            color: #ffffff;
+        }
+        .setup-mode { display: block; }
+        .run-mode { display: none; }
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #a0a0a0;
+        }
+        input, textarea {
             width: 100%;
-            padding: 10px;
-            background: #2a2a2a;
-            border: 1px solid #444;
-            color: white;
+            padding: 12px;
+            background-color: #1e1e1e;
+            border: 1px solid #333333;
             border-radius: 8px;
+            color: #ffffff;
+            font-size: 1rem;
             box-sizing: border-box;
-            margin-top: 5px;
-            font-size: 16px;
         }
-        .exercise-list { margin-top: 10px; }
-        .exercise-item {
-            background: #2a2a2a;
-            padding: 10px;
-            border-radius: 6px;
-            margin-bottom: 5px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .remove-btn { color: var(--accent); background: none; border: none; font-size: 16px; cursor: pointer; }
+        textarea { height: 120px; resize: none; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Custom HIIT Engine</h1>
-    
-    <!-- Timer Display -->
-    <div class="card" id="timerCard" style="border-top: 8px solid #444;">
-        <div class="status-label" id="status">Ready</div>
-        <div class="timer-display" id="countdown">00</div>
-        <div class="next-label" id="nextUp">Next: --</div>
-        <div class="btn-group">
-            <button class="btn" id="startBtn" onclick="toggleTimer()">Start</button>
-            <button class="btn btn-secondary" onclick="resetTimer()">Reset</button>
+    <!-- SETUP VIEW -->
+    <div id="setupView" class="setup-mode">
+        <div class="input-group">
+            <label for="workTime">Work Duration (seconds):</label>
+            <input type="number" id="workTime" value="30" min="5">
         </div>
+        <div class="input-group">
+            <label for="restTime">Rest Duration (seconds):</label>
+            <input type="number" id="restTime" value="15" min="5">
+        </div>
+        <div class="input-group">
+            <label for="exerciseList">Exercises (one per line):</label>
+            <textarea id="exerciseList">Jumping Jacks
+Pushups
+Squats
+Plank</textarea>
+        </div>
+        <button id="startBtn">START WORKOUT</button>
     </div>
 
-    <!-- Configuration -->
-    <div class="card">
-        <h3>Settings</h3>
-        <label>Work Duration (seconds)
-            <input type="number" id="workTime" value="30">
-        </label>
-        <label style="margin-top: 10px; display: block;">Rest Duration (seconds)
-            <input type="number" id="restTime" value="10">
-        </label>
-    </div>
-
-    <!-- Routine Builder -->
-    <div class="card">
-        <h3>Your Routine</h3>
-        <div class="btn-group">
-            <input type="text" id="newExercise" placeholder="e.g., Jumping Jacks">
-            <button class="btn" style="width: auto; margin-top:5px;" onclick="addExercise()">Add</button>
-        </div>
-        <div class="exercise-list" id="exerciseList"></div>
+    <!-- RUNNING VIEW -->
+    <div id="runView" class="run-mode">
+        <div id="statusLabel" class="status-display">Get Ready</div>
+        <div id="exerciseLabel" class="exercise-name">---</div>
+        <div id="timerLabel" class="timer-display">00</div>
+        <button id="stopBtn" class="stop">STOP</button>
     </div>
 </div>
 
-<!-- SILENT BACKGROUND AUDIO PLAYER TO BYPASS IOS SLEEP RESTRICTIONS -->
-<audio id="silentAudio" loop src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA=="></audio>
+<!-- Structural continuous audio loop to force background execution permissions -->
+<audio id="bgAudio" loop playsinline></audio>
 
 <script>
-    let exercises = ["Jumping Jacks", "Wall Sit", "Push-Ups", "Abdominal Crunch"];
-    let currentIndex = 0;
-    let isWorking = true;
-    let timer = null;
+    let exercises = [];
+    let currentIdx = 0;
+    let isWorkPhase = true;
     let timeLeft = 0;
-    let isPaused = true;
-    const silentAudio = document.getElementById('silentAudio');
+    let timerInterval = null;
+    let expectedTime = null;
+
+    const setupView = document.getElementById('setupView');
+    const runView = document.getElementById('runView');
+    const workInput = document.getElementById('workTime');
+    const restInput = document.getElementById('restTime');
+    const listInput = document.getElementById('exerciseList');
+    
+    const statusLabel = document.getElementById('statusLabel');
+    const exerciseLabel = document.getElementById('exerciseLabel');
+    const timerLabel = document.getElementById('timerLabel');
+    
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const bgAudio = document.getElementById('bgAudio');
+
+    const synth = window.speechSynthesis;
+
+    // Generate a true, compliant 1-second silent audio data stream manually
+    // This gives iOS a concrete media object to flag as "Playing" in the control center
+    function initializeAudioTrack() {
+        const sampleRate = 8000;
+        const numSamples = sampleRate;
+        const buf = new Uint8Array(44 + numSamples);
+        
+        // RIFF Header
+        buf.set([82,73,70,70], 0); // RIFF
+        buf[4] = (36 + numSamples) & 255; buf[5] = ((36 + numSamples) >> 8) & 255;
+        buf.set([87,65,86,69,102,109,116,32,16,0,0,0,1,0,1,0], 8); // WAVEfmt 
+        buf[24] = sampleRate & 255; buf[25] = (sampleRate >> 8) & 255; // Sample Rate
+        buf[28] = sampleRate & 255; buf[29] = (sampleRate >> 8) & 255; // Byte Rate
+        buf.set([1,0,8,0,100,97,116,97], 32); // BlockAlign, BitsPerSample, data
+        buf[40] = numSamples & 255; buf[41] = (numSamples >> 8) & 255; // Data chunk size
+        
+        // Fill audio with blank sound midpoints (PCM 8-bit silence is 128)
+        for (let i = 0; i < numSamples; i++) buf[44 + i] = 128;
+        
+        const blob = new Blob([buf], { type: 'audio/wav' });
+        bgAudio.src = URL.createObjectURL(blob);
+    }
 
     function speak(text) {
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel(); 
-            let utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1.1; 
-            window.speechSynthesis.speak(utterance);
+        if (synth.speaking) synth.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.15;
+        synth.speak(utterance);
+    }
+
+    function updateDisplay() {
+        timerLabel.textContent = timeLeft;
+        if (isWorkPhase) {
+            statusLabel.textContent = "Work";
+            statusLabel.style.color = "#03dac6";
+            exerciseLabel.textContent = exercises[currentIdx];
+        } else {
+            statusLabel.textContent = "Rest";
+            statusLabel.style.color = "#bb86fc";
+            exerciseLabel.textContent = "Up Next: " + (exercises[currentIdx + 1] || "Done!");
         }
     }
 
-    function renderExercises() {
-        const list = document.getElementById('exerciseList');
-        list.innerHTML = '';
-        exercises.forEach((ex, index) => {
-            list.innerHTML += `
-                <div class="exercise-item">
-                    <span>${index + 1}. ${ex}</span>
-                    <button class="remove-btn" onclick="removeExercise(${index})">✕</button>
-                </div>`;
+    // High-precision clock checking that calculates real drifted time elapsed
+    // This allows the timer to catch up if iOS throttles it for a split second
+    function engineStep() {
+        const drift = Date.now() - expectedTime;
+        if (drift > 5000) {
+            // The phone was deeply asleep; pull current interval calculations back into alignment
+            const missingSeconds = Math.floor(drift / 1000);
+            timeLeft -= missingSeconds;
+        }
+
+        if (timeLeft <= 0) {
+            if (isWorkPhase) {
+                isWorkPhase = false;
+                timeLeft = parseInt(restInput.value);
+                if (currentIdx >= exercises.length - 1) {
+                    endWorkout();
+                    return;
+                }
+                speak("Rest time!");
+            } else {
+                currentIdx++;
+                isWorkPhase = true;
+                timeLeft = parseInt(workInput.value);
+                speak("Next exercise: " + exercises[currentIdx]);
+            }
+        } else {
+            if (timeLeft === 4) speak("3");
+            if (timeLeft === 3) speak("2");
+            if (timeLeft === 2) speak("1");
+            timeLeft--;
+        }
+        
+        updateDisplay();
+        expectedTime += 1000;
+        timerInterval = setTimeout(engineStep, Math.max(0, 1000 - drift));
+    }
+
+    function startWorkout() {
+        exercises = listInput.value.split('\n').map(e => e.trim()).filter(e => e.length > 0);
+        if (exercises.length === 0) return alert("Please enter at least one exercise.");
+
+        currentIdx = 0;
+        isWorkPhase = true;
+        timeLeft = parseInt(workInput.value);
+
+        setupView.style.display = 'none';
+        runView.style.display = 'block';
+
+        // Initialize and fire off the media tracking engine loop
+        initializeAudioTrack();
+        bgAudio.play().then(() => {
+            speak("Workout started. First exercise: " + exercises[currentIdx]);
+            updateDisplay();
+            
+            expectedTime = Date.now() + 1000;
+            timerInterval = setTimeout(engineStep, 1000);
+        }).catch(err => {
+            alert("Please ensure your phone isn't on hardware silent switch and click Start again.");
         });
     }
 
-    function addExercise() {
-        const input = document.getElementById('newExercise');
-        if (input.value.trim() !== "") {
-            exercises.push(input.value.trim());
-            input.value = "";
-            renderExercises();
-        }
+    function endWorkout() {
+        clearTimeout(timerInterval);
+        bgAudio.pause();
+        speak("Workout complete! Great job.");
+        setupView.style.display = 'block';
+        runView.style.display = 'none';
     }
 
-    function removeExercise(index) {
-        exercises.splice(index, 1);
-        renderExercises();
+    function stopWorkout() {
+        clearTimeout(timerInterval);
+        bgAudio.pause();
+        if (synth.speaking) synth.cancel();
+        setupView.style.display = 'block';
+        runView.style.display = 'none';
     }
 
-    function toggleTimer() {
-        if (exercises.length === 0) return alert("Please add some exercises first!");
-        
-        if (isPaused && currentIndex === 0 && timeLeft === 0) {
-            speak("Starting workout.");
-            initSequence();
-        }
-
-        if (isPaused) {
-            isPaused = false;
-            // Play the silent track. This tells iOS to keep the thread alive in background
-            silentAudio.play().catch(e => console.log("Audio play failed:", e));
-            document.getElementById('startBtn').innerText = "Pause";
-            document.getElementById('startBtn').style.backgroundColor = "#ffa502";
-            timer = setInterval(tick, 1000);
-        } else {
-            isPaused = true;
-            silentAudio.pause();
-            document.getElementById('startBtn').innerText = "Resume";
-            document.getElementById('startBtn').style.backgroundColor = "var(--work)";
-            clearInterval(timer);
-        }
-    }
-
-    function initSequence() {
-        isWorking = true;
-        timeLeft = parseInt(document.getElementById('workTime').value);
-        updateUI();
-        speak(`First exercise: ${exercises[currentIndex]}. Go!`);
-    }
-
-    function tick() {
-        if (timeLeft > 0) {
-            timeLeft--;
-            if (timeLeft <= 3 && timeLeft > 0) {
-                speak(timeLeft.toString()); 
-            }
-            updateUI();
-        } else {
-            if (isWorking) {
-                if (currentIndex < exercises.length - 1) {
-                    isWorking = false;
-                    timeLeft = parseInt(document.getElementById('restTime').value);
-                    let nextEx = exercises[currentIndex + 1];
-                    speak(`Rest time. Next up is ${nextEx}.`);
-                    updateUI();
-                } else {
-                    clearInterval(timer);
-                    isPaused = true;
-                    silentAudio.pause();
-                    document.getElementById('status').innerText = "Finished!";
-                    document.getElementById('countdown').innerText = "🎉";
-                    speak("Workout complete! Great job.");
-                    document.getElementById('startBtn').innerText = "Start";
-                    return;
-                }
-            } else {
-                currentIndex++;
-                isWorking = true;
-                timeLeft = parseInt(document.getElementById('workTime').value);
-                speak(`Exercise: ${exercises[currentIndex]}. Go!`);
-                updateUI();
-            }
-        }
-    }
-
-    function updateUI() {
-        const card = document.getElementById('timerCard');
-        const status = document.getElementById('status');
-        const countdown = document.getElementById('countdown');
-        const nextUp = document.getElementById('nextUp');
-
-        countdown.innerText = timeLeft < 10 ? "0" + timeLeft : timeLeft;
-
-        if (isWorking) {
-            status.innerText = exercises[currentIndex];
-            card.style.borderTopColor = "var(--work)";
-            let next = exercises[currentIndex + 1] ? exercises[currentIndex + 1] : "Done!";
-            nextUp.innerText = `Next: ${next}`;
-        } else {
-            status.innerText = "Rest Period";
-            card.style.borderTopColor = "var(--rest)";
-            nextUp.innerText = `Up Next: ${exercises[currentIndex + 1]}`;
-        }
-    }
-
-    function resetTimer() {
-        clearInterval(timer);
-        isPaused = true;
-        silentAudio.pause();
-        currentIndex = 0;
-        timeLeft = 0;
-        document.getElementById('startBtn').innerText = "Start";
-        document.getElementById('startBtn').style.backgroundColor = "var(--accent)";
-        document.getElementById('status').innerText = "Ready";
-        document.getElementById('countdown').innerText = "00";
-        document.getElementById('nextUp').innerText = "Next: --";
-        document.getElementById('timerCard').style.borderTopColor = "#444";
-    }
-
-    renderExercises();
+    startBtn.addEventListener('click', startWorkout);
+    stopBtn.addEventListener('click', stopWorkout);
 </script>
+
 </body>
 </html>
