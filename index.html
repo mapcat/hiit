@@ -83,12 +83,19 @@
             box-sizing: border-box;
         }
         textarea { height: 120px; resize: none; }
+        /* Hides the keep-awake video utility entirely from view */
+        #wakeVideo {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0.01;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- SETUP VIEW -->
     <div id="setupView" class="setup-mode">
         <div class="input-group">
             <label for="workTime">Work Duration (seconds):</label>
@@ -108,7 +115,6 @@ Plank</textarea>
         <button id="startBtn">START WORKOUT</button>
     </div>
 
-    <!-- RUNNING VIEW -->
     <div id="runView" class="run-mode">
         <div id="statusLabel" class="status-display">Get Ready</div>
         <div id="exerciseLabel" class="exercise-name">---</div>
@@ -117,8 +123,7 @@ Plank</textarea>
     </div>
 </div>
 
-<!-- Structural continuous audio loop to force background execution permissions -->
-<audio id="bgAudio" loop playsinline></audio>
+<video id="wakeVideo" loop playsinline muted></video>
 
 <script>
     let exercises = [];
@@ -126,7 +131,6 @@ Plank</textarea>
     let isWorkPhase = true;
     let timeLeft = 0;
     let timerInterval = null;
-    let expectedTime = null;
 
     const setupView = document.getElementById('setupView');
     const runView = document.getElementById('runView');
@@ -140,31 +144,18 @@ Plank</textarea>
     
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
-    const bgAudio = document.getElementById('bgAudio');
+    const wakeVideo = document.getElementById('wakeVideo');
 
     const synth = window.speechSynthesis;
 
-    // Generate a true, compliant 1-second silent audio data stream manually
-    // This gives iOS a concrete media object to flag as "Playing" in the control center
-    function initializeAudioTrack() {
-        const sampleRate = 8000;
-        const numSamples = sampleRate;
-        const buf = new Uint8Array(44 + numSamples);
-        
-        // RIFF Header
-        buf.set([82,73,70,70], 0); // RIFF
-        buf[4] = (36 + numSamples) & 255; buf[5] = ((36 + numSamples) >> 8) & 255;
-        buf.set([87,65,86,69,102,109,116,32,16,0,0,0,1,0,1,0], 8); // WAVEfmt 
-        buf[24] = sampleRate & 255; buf[25] = (sampleRate >> 8) & 255; // Sample Rate
-        buf[28] = sampleRate & 255; buf[29] = (sampleRate >> 8) & 255; // Byte Rate
-        buf.set([1,0,8,0,100,97,116,97], 32); // BlockAlign, BitsPerSample, data
-        buf[40] = numSamples & 255; buf[41] = (numSamples >> 8) & 255; // Data chunk size
-        
-        // Fill audio with blank sound midpoints (PCM 8-bit silence is 128)
-        for (let i = 0; i < numSamples; i++) buf[44 + i] = 128;
-        
-        const blob = new Blob([buf], { type: 'audio/wav' });
-        bgAudio.src = URL.createObjectURL(blob);
+    // Generates a micro-sized structural video loop instantly inside the phone's memory
+    function injectWakeVideo() {
+        const base64Video = "AAAAHGZ0eXBtcDQyAAAAAG1wNDJpc29tYXZjMQAAAzptb292AAAAAG12aGQAAAAA3u7S9N7u0vQAAAPoAAAAKAAAAAEAAAEAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAACidHJhawAAALx0a2hkAAAAAd7u0vTe7u0vAAAAAQAAAAAAAAsAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAcRtZGlhAAAAJG1kaGQAAAAA3u7S9N7u0vQAAH0gAAAAKABVxAAAAAAAMWhkcmwAAAAAAAAAc291bgAAAAAAAAAAAAAAAABhcHBsAAAAAAAAAAAAAAAcbWluZgAAABRzbWhkAAAAAAAAAAAAAAAKZGluZgAAABxkcmVmAAAAAAAAAAEAAAAMdXJsIAAAAAEAAAGebWRhdAAAAAAAAA==";
+        const binary = atob(base64Video);
+        const array = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+        const blob = new Blob([array], { type: 'video/mp4' });
+        wakeVideo.src = URL.createObjectURL(blob);
     }
 
     function speak(text) {
@@ -187,16 +178,7 @@ Plank</textarea>
         }
     }
 
-    // High-precision clock checking that calculates real drifted time elapsed
-    // This allows the timer to catch up if iOS throttles it for a split second
-    function engineStep() {
-        const drift = Date.now() - expectedTime;
-        if (drift > 5000) {
-            // The phone was deeply asleep; pull current interval calculations back into alignment
-            const missingSeconds = Math.floor(drift / 1000);
-            timeLeft -= missingSeconds;
-        }
-
+    function tick() {
         if (timeLeft <= 0) {
             if (isWorkPhase) {
                 isWorkPhase = false;
@@ -218,10 +200,7 @@ Plank</textarea>
             if (timeLeft === 2) speak("1");
             timeLeft--;
         }
-        
         updateDisplay();
-        expectedTime += 1000;
-        timerInterval = setTimeout(engineStep, Math.max(0, 1000 - drift));
     }
 
     function startWorkout() {
@@ -235,30 +214,30 @@ Plank</textarea>
         setupView.style.display = 'none';
         runView.style.display = 'block';
 
-        // Initialize and fire off the media tracking engine loop
-        initializeAudioTrack();
-        bgAudio.play().then(() => {
+        // Engage the YouTube engine simulation hack
+        injectWakeVideo();
+        wakeVideo.play().then(() => {
             speak("Workout started. First exercise: " + exercises[currentIdx]);
             updateDisplay();
-            
-            expectedTime = Date.now() + 1000;
-            timerInterval = setTimeout(engineStep, 1000);
+            timerInterval = setInterval(tick, 1000);
         }).catch(err => {
-            alert("Please ensure your phone isn't on hardware silent switch and click Start again.");
+            // Fallback launch if hardware permissions stall
+            speak("Workout started.");
+            timerInterval = setInterval(tick, 1000);
         });
     }
 
     function endWorkout() {
-        clearTimeout(timerInterval);
-        bgAudio.pause();
+        clearInterval(timerInterval);
+        wakeVideo.pause();
         speak("Workout complete! Great job.");
         setupView.style.display = 'block';
         runView.style.display = 'none';
     }
 
     function stopWorkout() {
-        clearTimeout(timerInterval);
-        bgAudio.pause();
+        clearInterval(timerInterval);
+        wakeVideo.pause();
         if (synth.speaking) synth.cancel();
         setupView.style.display = 'block';
         runView.style.display = 'none';
