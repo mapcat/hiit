@@ -53,6 +53,8 @@
             cursor: pointer;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             transition: transform 0.1s, background-color 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         button:active {
             transform: scale(0.98);
@@ -61,8 +63,38 @@
             background-color: #cf6679;
             color: #ffffff;
         }
-        .setup-mode { display: block; }
-        .run-mode { display: none; }
+        button.proceed {
+            background-color: #bb86fc;
+            color: #000000;
+            margin-top: 20px;
+        }
+        .view-section { display: none; }
+        .active-view { display: block; }
+        
+        /* Alert Box Styling */
+        .alert-card {
+            background-color: #1e1e1e;
+            border: 2px solid #cf6679;
+            border-radius: 12px;
+            padding: 30px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .alert-card h2 {
+            color: #cf6679;
+            margin-top: 0;
+            font-size: 1.6rem;
+        }
+        .alert-card ul {
+            text-align: left;
+            padding-left: 20px;
+            line-height: 1.6;
+            color: #e0e0e0;
+        }
+        .alert-card li {
+            margin-bottom: 10px;
+        }
+
         .input-group {
             margin-bottom: 20px;
             text-align: left;
@@ -88,7 +120,19 @@
 <body>
 
 <div class="container">
-    <div id="setupView" class="setup-mode">
+    <div id="reminderView" class="view-section active-view">
+        <div class="alert-card">
+            <h2>⚠️ iOS Hardware Check</h2>
+            <p>To ensure your voice counts don't stop mid-workout, please verify your settings before starting:</p>
+            <ul>
+                <li><strong>Auto-Lock:</strong> Set to 5 Minutes or Never <br><small>(Settings &gt; Display &amp; Brightness)</small></li>
+                <li><strong>Low Power Mode:</strong> Turned OFF <br><small>(Settings &gt; Battery)</small></li>
+            </ul>
+        </div>
+        <button id="proceedBtn" class="proceed">I'm Ready, Proceed</button>
+    </div>
+
+    <div id="setupView" class="view-section">
         <div class="input-group">
             <label for="workTime">Work Duration (seconds):</label>
             <input type="number" id="workTime" value="30" min="1">
@@ -107,7 +151,7 @@ Plank</textarea>
         <button id="startBtn">START WORKOUT</button>
     </div>
 
-    <div id="runView" class="run-mode">
+    <div id="runView" class="view-section">
         <div id="statusLabel" class="status-display">Get Ready</div>
         <div id="exerciseLabel" class="exercise-name">---</div>
         <div id="timerLabel" class="timer-display">00</div>
@@ -122,8 +166,10 @@ Plank</textarea>
     let timeLeft = 0;
     let timerInterval = null;
 
+    const reminderView = document.getElementById('reminderView');
     const setupView = document.getElementById('setupView');
     const runView = document.getElementById('runView');
+    
     const workInput = document.getElementById('workTime');
     const restInput = document.getElementById('restTime');
     const listInput = document.getElementById('exerciseList');
@@ -132,6 +178,7 @@ Plank</textarea>
     const exerciseLabel = document.getElementById('exerciseLabel');
     const timerLabel = document.getElementById('timerLabel');
     
+    const proceedBtn = document.getElementById('proceedBtn');
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
 
@@ -140,7 +187,7 @@ Plank</textarea>
     function speak(text) {
         if (synth.speaking) synth.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.15; // Slightly faster pacing for workout countdowns
+        utterance.rate = 1.15;
         synth.speak(utterance);
     }
 
@@ -182,6 +229,12 @@ Plank</textarea>
         updateDisplay();
     }
 
+    // Step out of reminder wall into configuration view
+    function proceedToSetup() {
+        reminderView.classList.remove('active-view');
+        setupView.classList.add('active-view');
+    }
+
     function startWorkout() {
         exercises = listInput.value.split('\n').map(e => e.trim()).filter(e => e.length > 0);
         if (exercises.length === 0) return alert("Please enter at least one exercise.");
@@ -190,8 +243,8 @@ Plank</textarea>
         isWorkPhase = true;
         timeLeft = parseInt(workInput.value);
 
-        setupView.style.display = 'none';
-        runView.style.display = 'block';
+        setupView.classList.remove('active-view');
+        runView.classList.add('active-view');
 
         speak("Workout started. First exercise: " + exercises[currentIdx]);
         updateDisplay();
@@ -202,17 +255,18 @@ Plank</textarea>
     function endWorkout() {
         clearInterval(timerInterval);
         speak("Workout complete! Great job.");
-        setupView.style.display = 'block';
-        runView.style.display = 'none';
+        setupView.classList.add('active-view');
+        runView.classList.remove('active-view');
     }
 
     function stopWorkout() {
         clearInterval(timerInterval);
         if (synth.speaking) synth.cancel();
-        setupView.style.display = 'block';
-        runView.style.display = 'none';
+        setupView.classList.add('active-view');
+        runView.classList.remove('active-view');
     }
 
+    proceedBtn.addEventListener('click', proceedToSetup);
     startBtn.addEventListener('click', startWorkout);
     stopBtn.addEventListener('click', stopWorkout);
 </script>
