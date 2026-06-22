@@ -161,11 +161,10 @@ Plank</textarea>
 <script>
     let exercises = [];
     let currentIdx = 0;
-    let currentPhase = 'warmup'; // Tracking phase: 'warmup', 'work', 'rest'
+    let currentPhase = 'warmup';
     let timeLeft = 0;
     let timerInterval = null;
     
-    // Web Audio API Context for generating pitch tones natively
     let audioCtx = null;
 
     const reminderView = document.getElementById('reminderView');
@@ -186,7 +185,6 @@ Plank</textarea>
 
     const synth = window.speechSynthesis;
 
-    // Generates a digital buzzer chirp at precise frequencies
     function playTone(frequency, duration) {
         if (!audioCtx) return;
         try {
@@ -196,7 +194,8 @@ Plank</textarea>
             osc.type = 'sine';
             osc.frequency.value = frequency;
             
-            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            // Raised baseline gain to 0.8 for equal vocal blending parity
+            gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
             
             osc.connect(gain);
@@ -220,7 +219,7 @@ Plank</textarea>
         timerLabel.textContent = timeLeft;
         if (currentPhase === 'warmup') {
             statusLabel.textContent = "Get Ready";
-            statusLabel.style.color = "#ffb74d"; // Warm amber tone
+            statusLabel.style.color = "#ffb74d";
             exerciseLabel.textContent = "First up: " + exercises[0];
         } else if (currentPhase === 'work') {
             statusLabel.textContent = "Work";
@@ -235,34 +234,29 @@ Plank</textarea>
 
     function tick() {
         if (timeLeft <= 0) {
-            // Handle Transitions
             if (currentPhase === 'warmup') {
-                // Transition out of the initial 10s countdown into the first Work set
                 currentPhase = 'work';
                 timeLeft = parseInt(workInput.value);
                 speak(exercises[currentIdx]);
             } else if (currentPhase === 'work') {
-                // Transition from Work to Rest
                 currentPhase = 'rest';
                 timeLeft = parseInt(restInput.value);
                 if (currentIdx >= exercises.length - 1) {
                     endWorkout();
                     return;
                 }
-                speak("Rest");
+                // Removed spoken word "rest" -> relying entirely on final C5 tone transition
             } else if (currentPhase === 'rest') {
-                // Transition from Rest to next Work interval
                 currentIdx++;
                 currentPhase = 'work';
                 timeLeft = parseInt(workInput.value);
                 speak(exercises[currentIdx]);
             }
         } else {
-            // Play physical audio tracking chirps at the final 4 seconds of ANY phase
-            if (timeLeft === 4) playTone(261.63, 0.12); // C4 beep
-            if (timeLeft === 3) playTone(261.63, 0.12); // C4 beep
-            if (timeLeft === 2) playTone(261.63, 0.12); // C4 beep
-            if (timeLeft === 1) playTone(523.25, 0.30); // C5 higher target tone
+            if (timeLeft === 4) playTone(261.63, 0.12);
+            if (timeLeft === 3) playTone(261.63, 0.12);
+            if (timeLeft === 2) playTone(261.63, 0.12);
+            if (timeLeft === 1) playTone(523.25, 0.30);
             
             timeLeft--;
         }
@@ -278,14 +272,13 @@ Plank</textarea>
         exercises = listInput.value.split('\n').map(e => e.trim()).filter(e => e.length > 0);
         if (exercises.length === 0) return alert("Please enter at least one exercise.");
 
-        // Initialize audio system context on click interaction
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
 
         currentIdx = 0;
-        currentPhase = 'warmup'; // Pin startup sequence to our preparation time
-        timeLeft = 10; // 10 Second buffer clock countdown
+        currentPhase = 'warmup';
+        timeLeft = 10;
 
         setupView.classList.remove('active-view');
         runView.classList.add('active-view');
