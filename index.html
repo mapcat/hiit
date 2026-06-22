@@ -71,7 +71,6 @@
         .view-section { display: none; }
         .active-view { display: block; }
         
-        /* Alert Box Styling */
         .alert-card {
             background-color: #1e1e1e;
             border: 2px solid #cf6679;
@@ -139,7 +138,7 @@
         </div>
         <div class="input-group">
             <label for="restTime">Rest Duration (seconds):</label>
-            <input type="number" id="restTime" value="15" min="1">
+            <input type="number" id="restTime" value="5" min="1">
         </div>
         <div class="input-group">
             <label for="exerciseList">Exercises (one per line):</label>
@@ -162,9 +161,12 @@ Plank</textarea>
 <script>
     let exercises = [];
     let currentIdx = 0;
-    let isWorkPhase = true;
+    let currentPhase = 'warmup'; // Tracking phase: 'warmup', 'work', 'rest'
     let timeLeft = 0;
     let timerInterval = null;
+    
+    // Web Audio API Context for generating pitch tones natively
+    let audioCtx = null;
 
     const reminderView = document.getElementById('reminderView');
     const setupView = document.getElementById('setupView');
@@ -184,6 +186,29 @@ Plank</textarea>
 
     const synth = window.speechSynthesis;
 
+    // Generates a digital buzzer chirp at precise frequencies
+    function playTone(frequency, duration) {
+        if (!audioCtx) return;
+        try {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.value = frequency;
+            
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        } catch (e) {
+            console.log("Audio error:", e);
+        }
+    }
+
     function speak(text) {
         if (synth.speaking) synth.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
@@ -193,11 +218,15 @@ Plank</textarea>
 
     function updateDisplay() {
         timerLabel.textContent = timeLeft;
-        if (isWorkPhase) {
+        if (currentPhase === 'warmup') {
+            statusLabel.textContent = "Get Ready";
+            statusLabel.style.color = "#ffb74d"; // Warm amber tone
+            exerciseLabel.textContent = "First up: " + exercises[0];
+        } else if (currentPhase === 'work') {
             statusLabel.textContent = "Work";
             statusLabel.style.color = "#03dac6";
             exerciseLabel.textContent = exercises[currentIdx];
-        } else {
+        } else if (currentPhase === 'rest') {
             statusLabel.textContent = "Rest";
             statusLabel.style.color = "#bb86fc";
             exerciseLabel.textContent = "Up Next: " + (exercises[currentIdx + 1] || "Done!");
@@ -206,30 +235,40 @@ Plank</textarea>
 
     function tick() {
         if (timeLeft <= 0) {
-            if (isWorkPhase) {
-                isWorkPhase = false;
+            // Handle Transitions
+            if (currentPhase === 'warmup') {
+                // Transition out of the initial 10s countdown into the first Work set
+                currentPhase = 'work';
+                timeLeft = parseInt(workInput.value);
+                speak(exercises[currentIdx]);
+            } else if (currentPhase === 'work') {
+                // Transition from Work to Rest
+                currentPhase = 'rest';
                 timeLeft = parseInt(restInput.value);
                 if (currentIdx >= exercises.length - 1) {
                     endWorkout();
                     return;
                 }
-                speak("Rest time!");
-            } else {
+                speak("Rest");
+            } else if (currentPhase === 'rest') {
+                // Transition from Rest to next Work interval
                 currentIdx++;
-                isWorkPhase = true;
+                currentPhase = 'work';
                 timeLeft = parseInt(workInput.value);
-                speak("Next exercise: " + exercises[currentIdx]);
+                speak(exercises[currentIdx]);
             }
         } else {
-            if (timeLeft === 4) speak("3");
-            if (timeLeft === 3) speak("2");
-            if (timeLeft === 2) speak("1");
+            // Play physical audio tracking chirps at the final 4 seconds of ANY phase
+            if (timeLeft === 4) playTone(261.63, 0.12); // C4 beep
+            if (timeLeft === 3) playTone(261.63, 0.12); // C4 beep
+            if (timeLeft === 2) playTone(261.63, 0.12); // C4 beep
+            if (timeLeft === 1) playTone(523.25, 0.30); // C5 higher target tone
+            
             timeLeft--;
         }
         updateDisplay();
     }
 
-    // Step out of reminder wall into configuration view
     function proceedToSetup() {
         reminderView.classList.remove('active-view');
         setupView.classList.add('active-view');
@@ -239,14 +278,19 @@ Plank</textarea>
         exercises = listInput.value.split('\n').map(e => e.trim()).filter(e => e.length > 0);
         if (exercises.length === 0) return alert("Please enter at least one exercise.");
 
+        // Initialize audio system context on click interaction
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
         currentIdx = 0;
-        isWorkPhase = true;
-        timeLeft = parseInt(workInput.value);
+        currentPhase = 'warmup'; // Pin startup sequence to our preparation time
+        timeLeft = 10; // 10 Second buffer clock countdown
 
         setupView.classList.remove('active-view');
         runView.classList.add('active-view');
 
-        speak("Workout started. First exercise: " + exercises[currentIdx]);
+        speak("Get ready.");
         updateDisplay();
         
         timerInterval = setInterval(tick, 1000);
@@ -254,7 +298,7 @@ Plank</textarea>
 
     function endWorkout() {
         clearInterval(timerInterval);
-        speak("Workout complete! Great job.");
+        speak("Workout complete.");
         setupView.classList.add('active-view');
         runView.classList.remove('active-view');
     }
