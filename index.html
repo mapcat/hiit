@@ -185,24 +185,50 @@ Plank</textarea>
 
     const synth = window.speechSynthesis;
 
-    function playTone(frequency, duration) {
+    // Advanced synth synthesis to simulate an authentic ringing MIDI bell sound
+    function playBellTone(frequency, duration) {
         if (!audioCtx) return;
         try {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
+            const now = audioCtx.currentTime;
             
-            osc.type = 'sine';
-            osc.frequency.value = frequency;
+            // 1. Primary fundamental root note oscillator
+            const osc1 = audioCtx.createOscillator();
+            const gain1 = audioCtx.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(frequency, now);
             
-            // Raised baseline gain to 0.8 for equal vocal blending parity
-            gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+            // 2. Secondary overtone harmonic oscillator (simulates metal chime resonance)
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(frequency * 2, now); // Double the frequency for perfect higher octave blend
             
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            // Master volume envelope control node
+            const masterGain = audioCtx.createGain();
             
-            osc.start();
-            osc.stop(audioCtx.currentTime + duration);
+            // Setup smooth exponential decay curve (The "Ring")
+            masterGain.gain.setValueAtTime(0.7, now);
+            masterGain.gain.exponentialRampToValueAtTime(0.00001, now + duration);
+            
+            // Balance the fundamental and the overtone chime
+            gain1.gain.setValueAtTime(0.6, now);
+            gain2.gain.setValueAtTime(0.3, now); 
+            
+            // Map the framework connections
+            osc1.connect(gain1);
+            gain1.connect(masterGain);
+            
+            osc2.connect(gain2);
+            gain2.connect(masterGain);
+            
+            masterGain.connect(audioCtx.destination);
+            
+            // Execute audio broadcast sequence
+            osc1.start(now);
+            osc2.start(now);
+            
+            osc1.stop(now + duration);
+            osc2.stop(now + duration);
         } catch (e) {
             console.log("Audio error:", e);
         }
@@ -245,7 +271,6 @@ Plank</textarea>
                     endWorkout();
                     return;
                 }
-                // Removed spoken word "rest" -> relying entirely on final C5 tone transition
             } else if (currentPhase === 'rest') {
                 currentIdx++;
                 currentPhase = 'work';
@@ -253,10 +278,11 @@ Plank</textarea>
                 speak(exercises[currentIdx]);
             }
         } else {
-            if (timeLeft === 4) playTone(261.63, 0.12);
-            if (timeLeft === 3) playTone(261.63, 0.12);
-            if (timeLeft === 2) playTone(261.63, 0.12);
-            if (timeLeft === 1) playTone(523.25, 0.30);
+            // Elongated durations and dual-frequency notes for rich ring-out execution
+            if (timeLeft === 4) playBellTone(261.63, 0.45); // Elongated C4 Bell
+            if (timeLeft === 3) playBellTone(261.63, 0.45); // Elongated C4 Bell
+            if (timeLeft === 2) playBellTone(261.63, 0.45); // Elongated C4 Bell
+            if (timeLeft === 1) playBellTone(523.25, 0.85); // High Ringing C5 Target Bell
             
             timeLeft--;
         }
